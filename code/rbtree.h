@@ -35,7 +35,7 @@ class RBTree : public unique_ptr<RBNode<Key>> {
         using unique_ptr<RBNode<Key>>::unique_ptr;
         
         // Use the move operator of unique_ptr<RBNode<Key>> as the move operator from RBTree
-        RBTree(unique_ptr<RBNode<Key>>&& boom) : unique_ptr<RBNode<Key>> (move(boom)) { }
+        RBTree(unique_ptr<RBNode<Key>>&& tree) : unique_ptr<RBNode<Key>> (move(tree)) { }
         
         void rotate(bool left);
         void addBottomUp(const Key& key);
