@@ -17,7 +17,6 @@ class RBNode {
         RBNode(Key&& key):key{move(key)},parent(0),color(red){};
         
         RBTree<Key>& returnChild(const bool left);
-        RBTree<Key>* returnChildPointer(const bool left);
         bool isLeftChild(RBNode<Key>* node);
         RBTree<Key>* returnParent(RBTree<Key>* root);
         
@@ -54,9 +53,5 @@ RBTree<Key>* RBNode<Key>::returnParent(RBTree<Key>* root) {
     return nullptr;
 }
 
-template <class Key>
-RBTree<Key>* RBNode<Key>::returnChildPointer(const bool left) {
-    return left ? &(this->left) : &(this->right);
-}
-
 #endif
+
