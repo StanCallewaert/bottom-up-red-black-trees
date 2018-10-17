@@ -11,6 +11,8 @@
 #include <fstream>
 #include <sstream>
 #include <cassert>
+#include <algorithm>
+#include <string>
 
 using std::unique_ptr;
 using std::make_unique;
@@ -21,6 +23,7 @@ using std::ofstream;
 using std::ostringstream;
 using std::cout;
 using std::endl;
+using std::swap;
 
 template <class Key>
 class RBNode;
@@ -36,18 +39,26 @@ class RBTree : public unique_ptr<RBNode<Key>> {
         
         void rotate(bool left);
         void addBottomUp(const Key& key);
-        
+        void deleteBottomUp(const Key& key);
+
         // Use this function to visualize the current graph
         // Just copy the textual output that is in the given file after executing the program
         // and paste it in the textarea of the website: http://webgraphviz.com
         void visualize(const char* filename) const;
     protected:
-        // Recursive method that makes sure that the tree stays a RBTree
-        // Solved in a bottom-up approach
-        void stayRBTreeBottomUp(RBTree<Key>* newNodePtr, RBNode<Key>* parent);
-        
         // Returns the pointer to the node (and his parent) that was searched for
         void search(const Key& key, RBTree<Key>*& newNodePtr, RBNode<Key>*& parent);
+        
+        // Search pointer to successor of current node
+        RBTree<Key>* searchSuccessor();
+        
+        // Recursive method that makes sure that the tree stays a RBTree
+        // Solved in a bottom-up approach
+        void stayRBTreeBottomUpAdd(RBTree<Key>* newNodePtr, RBNode<Key>* parent);
+        
+        // Recursive method that makes sure that double black is deleted from
+        // the RBTree. The method is always called upon the double black node.
+        void removeDoubleBlack(RBTree<Key>* doubleBlack, RBTree<Key>* parent);
         
         // Recursively print out the text of each node to be able to visualize the tree
         string visualizeNodesRecusively(ostream& out, int& nullCounter) const;
@@ -95,7 +106,7 @@ void RBTree<Key>::addBottomUp(const Key& key) {
         
         // Make sure that there is no red node with a red parent
         // and make sure that the black depth for each virtual node is equal
-        this->stayRBTreeBottomUp(newNodePtr, parent);
+        this->stayRBTreeBottomUpAdd(newNodePtr, parent);
         
         // Make root black
         (*this)->color = black;
@@ -103,7 +114,89 @@ void RBTree<Key>::addBottomUp(const Key& key) {
 }
 
 template <class Key>
-void RBTree<Key>::stayRBTreeBottomUp(RBTree<Key>* newNodePtr, RBNode<Key>* parent) {
+void RBTree<Key>::deleteBottomUp(const Key& key) {
+    // Initialize newNodePtr and parent to get their real values in the search function
+    RBTree<Key>* nodePtr;
+    RBNode<Key>* parent;
+    
+    // Find the spot (and his parent) where the new node has to be added to
+    this->search(key, nodePtr, parent);
+    
+    // Only delete the node if it already exists in the red-black tree
+    if (*nodePtr) {
+        RBTree<Key>* successor = nodePtr->searchSuccessor();
+        
+        // If no successor is found
+        if (successor == nodePtr) {
+            RBTree<Key>* leftChild = &((*nodePtr)->left);
+            
+            if ((*nodePtr)->color == red) {
+                *nodePtr = move(*leftChild);
+            } else {
+                // If left child is red, move it and change it to black
+                if (*leftChild && (*leftChild)->color == red) {
+                    *nodePtr = move(*leftChild);
+                    (*nodePtr)->color = black;
+                } else {
+                    RBTree<Key>* parent = (*nodePtr)->returnParent(this);
+                    
+                    *nodePtr = move(*leftChild);
+                    this->removeDoubleBlack(nodePtr, parent);
+                }
+            }
+        // If successor is found
+        } else {
+            swap((*nodePtr)->key, (*successor)->key);
+            RBTree<Key>* rightChild = &((*successor)->right);
+            
+            // If successor is red
+            if ((*successor)->color == red) {
+                *successor = move(*rightChild);
+            } else {
+                // Right child color is red, change it to black
+                if (*rightChild && (*rightChild)->color == red) {
+                    *successor = move(*rightChild);
+                    (*successor)->color = black;
+                // Black right child means double black
+                } else {
+                    RBTree<Key>* parent = (*successor)->returnParent(this);
+                    
+                    *successor = move(*rightChild);
+                    this->removeDoubleBlack(successor, parent);
+                }
+            }
+        }
+    }
+}
+
+template <class Key>
+void RBTree<Key>::search(const Key& key, RBTree<Key>*& newNodePtr, RBNode<Key>*& parent) {
+    newNodePtr = this;
+    parent = nullptr;
+    
+    while (*newNodePtr && (*newNodePtr)->key !=key) {
+        parent = newNodePtr->get();
+        newNodePtr = &((*newNodePtr)->returnChild(((*newNodePtr)->key > key)));
+    }
+}
+
+template <class Key>
+RBTree<Key>* RBTree<Key>::searchSuccessor() {
+    if ((*this)->right) {
+        RBTree<Key>* successor = &((*this)->right);
+        
+        while ((*successor)->left) {
+           successor = &((*successor)->left);
+        }
+        
+        return successor;
+    }
+    
+    return this;
+}
+
+template <class Key>
+void RBTree<Key>::stayRBTreeBottomUpAdd(RBTree<Key>* newNodePtr, RBNode<Key>* parent) {
     // Solve conflict if the added node has a red parent
     if (parent && parent->color == red) {
         RBTree<Key>* grandparent = parent->parent && parent->parent->parent ? &(parent->parent->parent->returnChild(parent->parent->parent->isLeftChild(parent->parent))) : this;
@@ -116,7 +209,7 @@ void RBTree<Key>::stayRBTreeBottomUp(RBTree<Key>* newNodePtr, RBNode<Key>* paren
             parent->color = black;
             
             // Grandparent is red, solve problems if grandgrandparent is also red
-            this->stayRBTreeBottomUp(grandparent, (*grandparent)->parent);
+            this->stayRBTreeBottomUpAdd(grandparent, (*grandparent)->parent);
         } else {
             if (parent->isLeftChild(&(**newNodePtr)) != isParentLeftChildOfGrandparent) {
                 (*grandparent)->returnChild(isParentLeftChildOfGrandparent).rotate(isParentLeftChildOfGrandparent);
@@ -132,16 +225,51 @@ void RBTree<Key>::stayRBTreeBottomUp(RBTree<Key>* newNodePtr, RBNode<Key>* paren
 }
 
 template <class Key>
-void RBTree<Key>::search(const Key& key, RBTree<Key>*& newNodePtr, RBNode<Key>*& parent){
-    newNodePtr = this;
-    parent = nullptr;
-    
-    while (*newNodePtr && (*newNodePtr)->key !=key){
-        parent = newNodePtr->get();
-        newNodePtr = &((*newNodePtr)->returnChild(((*newNodePtr)->key > key)));
-    };
-};
+void RBTree<Key>::removeDoubleBlack(RBTree<Key>* doubleBlack, RBTree<Key>* parent) {    
+    // If node has parent, remove black.
+    // If node doesn't have parent than the full tree loses 1 black depth.
+    if (parent) {
+        bool isLeftChild = (*parent)->isLeftChild(&(**doubleBlack));
+        RBTree<Key>* brother = &((*parent)->returnChild(!isLeftChild));
+        
+        // Red brother
+        if (*brother && (*brother)->color == red) {    
+            parent->rotate(isLeftChild);
+            swap((*parent)->color, (*parent)->returnChild(isLeftChild)->color);
 
+            this->removeDoubleBlack(&((*parent)->returnChild(isLeftChild)->returnChild(isLeftChild)), &((*parent)->returnChild(isLeftChild)));
+        // Black brother
+        } else {
+            RBTree<Key>* leftChildBrother = &((*brother)->returnChild(isLeftChild));
+            RBTree<Key>* rightChildBrother = &((*brother)->returnChild(!isLeftChild));
+            
+            if (*rightChildBrother && (*rightChildBrother)->color == red) {
+                parent->rotate(isLeftChild);
+
+                swap((*parent)->color, (*parent)->returnChild(isLeftChild)->color);
+                (*parent)->returnChild(!isLeftChild)->color = black;
+            } else {
+                if (*leftChildBrother && (*leftChildBrother)->color == red) {
+                    brother->rotate(!isLeftChild);
+                    swap((*brother)->color, (*brother)->returnChild(!isLeftChild)->color);
+                    
+                    parent->rotate(isLeftChild);
+                    swap((*parent)->color, (*parent)->returnChild(isLeftChild)->color);
+                    (*parent)->returnChild(!isLeftChild)->color = black;
+                } else {
+                    (*brother)->color = red;
+                    
+                    if ((*parent)->color == red) {
+                        (*parent)->color = black;
+                    } else {
+                        RBTree<Key>* grandparent = (*parent)->returnParent(this);
+                        this->removeDoubleBlack(parent, grandparent);
+                    }
+                }
+            }
+        }
+    }
+}
 
 template <class Key>
 void RBTree<Key>::visualize(const char* filename) const {

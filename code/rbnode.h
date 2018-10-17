@@ -17,7 +17,9 @@ class RBNode {
         RBNode(Key&& key):key{move(key)},parent(0),color(red){};
         
         RBTree<Key>& returnChild(const bool left);
+        RBTree<Key>* returnChildPointer(const bool left);
         bool isLeftChild(RBNode<Key>* node);
+        RBTree<Key>* returnParent(RBTree<Key>* root);
         
         Key key;
         RBNode<Key>* parent;
@@ -28,11 +30,33 @@ class RBNode {
 template <class Key>
 RBTree<Key>& RBNode<Key>::returnChild(const bool left){
     return left ? this->left : this->right;
-};
+}
 
 template <class Key>
 bool RBNode<Key>::isLeftChild(RBNode<Key>* node) {
     return &(*(this->left)) == node;
+}
+
+template <class Key>
+RBTree<Key>* RBNode<Key>::returnParent(RBTree<Key>* root) {
+    RBNode<Key>* parentNode = this->parent;
+    
+    if (parentNode) {
+        RBNode<Key>* grandparentNode = parentNode->parent;
+        
+        if (grandparentNode) {
+            return &(grandparentNode->returnChild(grandparentNode->isLeftChild(parentNode)));
+        }
+        
+        return root;
+    }
+    
+    return nullptr;
+}
+
+template <class Key>
+RBTree<Key>* RBNode<Key>::returnChildPointer(const bool left) {
+    return left ? &(this->left) : &(this->right);
 }
 
 #endif
