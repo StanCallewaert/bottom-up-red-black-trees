@@ -8,7 +8,7 @@ The characteristics of a red-black tree are as follows:
 4. Each possible route from a node to a virtual node has to have the same number of black nodes. This number is called the black height of a node.
 5. The root is black. This is not necessary per se, but makes the process of maintaining a red-black tree easier.
 
-Red-black tree search, add and delete by using bottom-up and top-down are coded and explained in this repository. Cases will be used to explain how red-black trees can keep their characteristics. The cases described below also count in case the tree is mirrored (left part becomes right part and vice versa).
+Red-black tree search, add and delete by using bottom-up are coded and explained in this repository. Cases will be used to explain how red-black trees can keep their characteristics. The cases described below also count in case the tree is mirrored (left part becomes right part and vice versa).
 
 ## bottom-up add
 
