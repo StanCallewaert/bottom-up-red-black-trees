@@ -1,4 +1,4 @@
-# red-black trees
+# bottom-up red-black trees
 
 The characteristics of a red-black tree are as follows:
 
